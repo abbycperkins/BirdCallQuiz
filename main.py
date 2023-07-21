@@ -9,6 +9,8 @@ import contextlib
 with contextlib.redirect_stdout(None):
     from pygame import mixer
 from collections import defaultdict
+import pandas as pd
+
 from PyQt5.Qt import Qt
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QWidget, QMainWindow, QApplication, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QPushButton, QInputDialog, QLabel, QMessageBox
@@ -80,7 +82,7 @@ class BirdQuiz(QMainWindow):
 
     def run_quiz(self):
         for bird in BIRDS:
-            species_url = bird.replace(' ', '-').lower()
+            species_url = bird.replace(' ', '-').replace("'","").lower()
             url = f'{BASE_URL}{species_url}'
             file_name = f'{species_url}.mp3'
             if (DIRECTORY / file_name).is_file():
@@ -107,6 +109,8 @@ class BirdQuiz(QMainWindow):
         score = 0
 
         for bird in BIRDS:
+            species_code = defaultdict(str)
+            # df = pd.read_csv('C:/Users/Abby/PycharmProjects/BirdCallQuiz/species code.csv', usecols=['Species', 'Species Code'])
             cb_sterile = bird.replace(' ', '-').lower()
             cb_file = f'{cb_sterile}.mp3'
             # play sound until player gives answer
@@ -120,6 +124,7 @@ class BirdQuiz(QMainWindow):
             player_answer, ok = dialog.getText(self, 'Input Dialog', 'The bird is a: ')
             player_answer = player_answer.replace("'", "")
             if player_answer.lower() == bird.lower():
+                    # or player_answer.lower() == df.loc[[bird], ['Species Code']]:
                 score = score + 1
 
             if ok:
@@ -128,6 +133,7 @@ class BirdQuiz(QMainWindow):
                 msg.setStandardButtons(QMessageBox.Ok)
                 msg.setWindowTitle('Answer')
                 if player_answer.lower() == bird.lower():
+                        # or player_answer.lower() == df.loc[[bird], ['Species Code']]:
                     msg.setText("Correct!")
                 else:
                     msg.setText(f'Incorrect. The bird is a {bird}.')
