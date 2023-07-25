@@ -9,9 +9,14 @@ import contextlib
 with contextlib.redirect_stdout(None):
     from pygame import mixer
 from collections import defaultdict
+import pandas as pd
+
 from PyQt5.Qt import Qt
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QWidget, QMainWindow, QApplication, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QPushButton, QInputDialog, QLabel, QMessageBox
+from PyQt5.QtWidgets import (
+    QWidget, QMainWindow, QApplication, QVBoxLayout, QTreeWidget,
+    QTreeWidgetItem, QPushButton, QInputDialog, QMessageBox,
+)
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 ' \
              'Safari/537.36'
@@ -20,13 +25,13 @@ parent_directory = pathlib.Path('C:/Users/Abby/PycharmProjects/BirdCallQuiz')
 directory = "Audio_Files"
 DIRECTORY = parent_directory / directory
 DIRECTORY.mkdir(parents=True, exist_ok=True)
-BIRD_CSV = pathlib.Path(pathlib.Path('C:/Users/Abby/PycharmProjects/BirdCallQuiz/families and species.csv')).expanduser()
-BIRDS = []
+BIRD_CSV = pathlib.Path('C:/Users/Abby/PycharmProjects/BirdCallQuiz/families and species.csv').expanduser()
 
 
 class BirdQuiz(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.bird_list = []
         self.setWindowTitle("Bird Quiz")
 
         layout = QVBoxLayout()
@@ -66,6 +71,7 @@ class BirdQuiz(QMainWindow):
         return tree
 
     def submit_list(self):
+        self.bird_list.clear()
         root = self.tree.invisibleRootItem()
         for index in range(root.childCount()):
             parent = root.child(index)
@@ -75,12 +81,12 @@ class BirdQuiz(QMainWindow):
                 for row in range(parent.childCount()):
                     child = parent.child(row)
                     if child.checkState(0) == Qt.Checked:
-                        BIRDS.append(child.text(0))
-        print(BIRDS)
+                        self.bird_list.append(child.text(0))
+        print(self.bird_list)
 
     def run_quiz(self):
-        for bird in BIRDS:
-            species_url = bird.replace(' ', '-').lower()
+        for bird in self.bird_list:
+            species_url = bird.replace(' ', '-').replace("'", "").lower()
             url = f'{BASE_URL}{species_url}'
             file_name = f'{species_url}.mp3'
             if (DIRECTORY / file_name).is_file():
@@ -103,10 +109,14 @@ class BirdQuiz(QMainWindow):
                     f.write(mp3_file.content)
 
         # run quiz until no more birds
-        random.shuffle(BIRDS)
+        random.shuffle(self.bird_list)
         score = 0
 
-        for bird in BIRDS:
+        for bird in self.bird_list:
+            df = pd.read_csv('C:/Users/Abby/PycharmProjects/BirdCallQuiz/species codes.csv',
+                             usecols=['Species', 'Species Code'])
+            df.set_index('Species', inplace=True)
+            species_code = df.at[bird, 'Species Code'].lower()
             cb_sterile = bird.replace(' ', '-').lower()
             cb_file = f'{cb_sterile}.mp3'
             # play sound until player gives answer
@@ -118,8 +128,8 @@ class BirdQuiz(QMainWindow):
             # ask player for answer
             dialog = QInputDialog(self)
             player_answer, ok = dialog.getText(self, 'Input Dialog', 'The bird is a: ')
-            player_answer = player_answer.replace("'", "")
-            if player_answer.lower() == bird.lower():
+            player_answer = player_answer.replace("'", "").lower()
+            if player_answer == bird.lower() or player_answer == species_code:
                 score = score + 1
 
             if ok:
@@ -127,13 +137,14 @@ class BirdQuiz(QMainWindow):
                 msg = QMessageBox()
                 msg.setStandardButtons(QMessageBox.Ok)
                 msg.setWindowTitle('Answer')
-                if player_answer.lower() == bird.lower():
+                if player_answer == bird.lower() \
+                        or player_answer == species_code:
                     msg.setText("Correct!")
                 else:
-                    msg.setText(f'Incorrect. The bird is a {bird}.')
+                    msg.setText(f'Incorrect. The bird is a {bird} ({species_code.upper()}).')
                 msg.exec_()
 
-        msg.setText(f'You have completed your bird list! Your score was {score}/{len(BIRDS)}')
+        msg.setText(f'You have completed your bird list! Your score was {score}/{len(self.bird_list)}')
         msg.setWindowTitle('Quiz complete!')
         msg.exec_()
 
