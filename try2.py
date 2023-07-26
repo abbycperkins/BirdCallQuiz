@@ -15,8 +15,8 @@ from PyQt5.Qt import Qt
 from PyQt5 import QtCore
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (
-    QWidget, QMainWindow, QApplication, QVBoxLayout, QTreeWidget, QLabel,
-    QTreeWidgetItem, QPushButton, QInputDialog, QMessageBox, QFileDialog
+    QWidget, QMainWindow, QApplication, QVBoxLayout, QTreeWidget, QLabel, QDialogButtonBox, QFormLayout,
+    QTreeWidgetItem, QPushButton, QInputDialog, QMessageBox, QFileDialog, QLineEdit, QDialog,
 )
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 ' \
@@ -27,6 +27,34 @@ directory = "Audio_Files"
 DIRECTORY = parent_directory / directory
 DIRECTORY.mkdir(parents=True, exist_ok=True)
 BIRD_CSV = pathlib.Path('C:/Users/Abby/PycharmProjects/BirdCallQuiz/families and species.csv').expanduser()
+
+
+class Dialog(QDialog):
+    def __init__(self, filename, parent=None):
+        super().__init__(parent)
+        self.jpg_file_name = filename
+        self.load_image_btn = QPushButton("View Bird")
+        self.load_image_btn.clicked.connect(self.load_image)
+        self.setWindowTitle('Bird Quiz')
+        self.image_lbl = QLabel()
+        self.inp = QLineEdit(self)
+
+        buttonbox = QDialogButtonBox(QDialogButtonBox.Ok, self)
+        buttonbox.accepted.connect(self.accept)
+
+        lay = QFormLayout(self)
+        lay.addWidget(self.inp)
+        lay.addWidget(self.load_image_btn)
+        lay.addWidget(self.image_lbl)
+        lay.addWidget(buttonbox)
+
+    def load_image(self):
+        file_location = f'C:/Users/Abby/PycharmProjects/BirdCallQuiz/Audio_Files/{self.jpg_file_name}'
+        pixmap = QPixmap(file_location)
+        self.image_lbl.setPixmap(QPixmap(pixmap))
+
+    def get_input(self):
+        return self.inp.text()
 
 
 class BirdQuiz(QMainWindow):
@@ -158,22 +186,23 @@ class BirdQuiz(QMainWindow):
             # time.sleep(5)
 
             # ask player for answer
-            dialog = QInputDialog(self)
+            dialog = Dialog(f'{cb_sterile}.jpg')
 
-            player_answer, ok = dialog.getText(self, 'Input Dialog', 'The bird is a: ')
-            player_answer = player_answer.replace("'", "").lower()
-            if player_answer == bird.lower() or player_answer == species_code:
-                score = score + 1
-
-            if ok:
+            if dialog.exec():
+                player_answer = dialog.get_input()
+                player_answer = player_answer.replace("'", "").lower()
                 mixer.music.stop()
                 msg = QMessageBox()
                 msg.setStandardButtons(QMessageBox.Ok)
                 msg.setWindowTitle('Answer')
+
                 if player_answer == bird.lower() or player_answer == species_code:
                     msg.setText("Correct!")
+                    score = score + 1
+
                 else:
                     msg.setText(f'Incorrect. The bird is a {bird} ({species_code.upper()}).')
+
                 msg.exec_()
 
         msg.setText(f'You have completed your bird list! Your score was {score}/{len(self.bird_list)}')
