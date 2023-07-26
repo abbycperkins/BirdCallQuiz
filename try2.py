@@ -16,7 +16,7 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (
     QWidget, QMainWindow, QApplication, QVBoxLayout, QTreeWidget, QLabel, QDialogButtonBox, QFormLayout,
-    QTreeWidgetItem, QPushButton, QInputDialog, QMessageBox, QFileDialog, QLineEdit, QDialog,
+    QTreeWidgetItem, QPushButton, QMessageBox, QFileDialog, QLineEdit, QDialog,
 )
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 ' \
@@ -62,6 +62,7 @@ class BirdQuiz(QMainWindow):
     def __init__(self):
         super().__init__()
         self.bird_list = []
+        self.quiz_length = 0
         self.setWindowTitle("Bird Quiz")
 
         layout = QVBoxLayout()
@@ -124,6 +125,7 @@ class BirdQuiz(QMainWindow):
         return tree
 
     def create_list(self):
+        self.quiz_length = 0
         self.bird_list.clear()
         root = self.tree.invisibleRootItem()
         for index in range(root.childCount()):
@@ -145,13 +147,17 @@ class BirdQuiz(QMainWindow):
             mp3_file_name = f'{species_url}.mp3'
             jpg_file_name = f'{species_url}.jpg'
 
-            if (DIRECTORY / mp3_file_name).is_file() and (DIRECTORY / jpg_file_name).is_file():
+            if (DIRECTORY / jpg_file_name).is_file():
                 continue
-            print(f'Requesting: {mp3_url}')
+            print(f'Requesting: {mp3_url}.jpg')
 
             with open((DIRECTORY / jpg_file_name), 'wb') as f:
                 jpg_file = requests.get(url=jpg_url, headers={'User-Agent': USER_AGENT})
                 f.write(jpg_file.content)
+
+            if (DIRECTORY / mp3_file_name).is_file():
+                continue
+            print(f'Requesting: {mp3_url}.mp3')
 
             r = requests.get(
                 url=mp3_url,
@@ -174,6 +180,7 @@ class BirdQuiz(QMainWindow):
         score = 0
 
         for bird in self.bird_list:
+            self.quiz_length = self.quiz_length + 1
             df = pd.read_csv('C:/Users/Abby/PycharmProjects/BirdCallQuiz/species codes.csv',
                              usecols=['Species', 'Species Code'])
             df.set_index('Species', inplace=True)
@@ -206,7 +213,10 @@ class BirdQuiz(QMainWindow):
 
                 msg.exec_()
 
-        msg.setText(f'You have completed your bird list! Your score was {score}/{len(self.bird_list)}')
+            if self.quiz_length == 10:
+                break
+
+        msg.setText(f'You have completed your bird list! Your score was {score}/{self.quiz_length}')
         msg.setWindowTitle('Quiz complete!')
         msg.exec_()
 
