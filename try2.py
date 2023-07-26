@@ -13,9 +13,10 @@ import pandas as pd
 
 from PyQt5.Qt import Qt
 from PyQt5 import QtCore
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (
-    QWidget, QMainWindow, QApplication, QVBoxLayout, QTreeWidget,
-    QTreeWidgetItem, QPushButton, QInputDialog, QMessageBox,
+    QWidget, QMainWindow, QApplication, QVBoxLayout, QTreeWidget, QLabel,
+    QTreeWidgetItem, QPushButton, QInputDialog, QMessageBox, QFileDialog
 )
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 ' \
@@ -38,14 +39,37 @@ class BirdQuiz(QMainWindow):
         self.tree = self.create_tree()
         layout.addWidget(self.tree)
 
-        button = QPushButton('Submit List')
+        button = QPushButton('Submit and Play')
+        load = QPushButton('Load and Play')
+        save = QPushButton('Save')
+        layout.addWidget(save)
+        layout.addWidget(load)
         layout.addWidget(button)
-        button.pressed.connect(lambda: self.submit_list())
+        save.pressed.connect(lambda: self.save_list())
+        load.pressed.connect(lambda: self.load_list())
+        button.pressed.connect(lambda: self.create_list())
         button.pressed.connect(lambda: self.run_quiz())
 
         central_widget = QWidget()
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
+
+    def save_list(self):
+        self.create_list()
+        name = QFileDialog.getSaveFileName(self, 'Save File', '', 'Text files (*.txt)')
+        with open(name[0], 'w') as file:
+            for bird in self.bird_list:
+                file.write(f'{bird}\n')
+        print("File saved successfully")
+        file.close()
+
+    def load_list(self):
+        name = QFileDialog.getOpenFileName(self, 'Open File', '', 'Text files (*.txt)')
+        with open(name[0], 'r') as file:
+            for line in file:
+                x = line[:-1]
+                self.bird_list.append(x)
+        self.run_quiz()
 
     def create_tree(self):
         tree = QTreeWidget()
@@ -70,7 +94,7 @@ class BirdQuiz(QMainWindow):
         tree.setHeaderHidden(True)
         return tree
 
-    def submit_list(self):
+    def create_list(self):
         self.bird_list.clear()
         root = self.tree.invisibleRootItem()
         for index in range(root.childCount()):
@@ -82,18 +106,26 @@ class BirdQuiz(QMainWindow):
                     child = parent.child(row)
                     if child.checkState(0) == Qt.Checked:
                         self.bird_list.append(child.text(0))
-        print(self.bird_list)
 
     def run_quiz(self):
+        print(self.bird_list)
         for bird in self.bird_list:
             species_url = bird.replace(' ', '-').replace("'", "").lower()
-            url = f'{BASE_URL}{species_url}'
-            file_name = f'{species_url}.mp3'
-            if (DIRECTORY / file_name).is_file():
+            mp3_url = f'{BASE_URL}{species_url}'
+            jpg_url = f'{BASE_URL}images/{species_url}.jpg'
+            mp3_file_name = f'{species_url}.mp3'
+            jpg_file_name = f'{species_url}.jpg'
+
+            if (DIRECTORY / mp3_file_name).is_file() and (DIRECTORY / jpg_file_name).is_file():
                 continue
-            print(f'Requesting: {url}')
+            print(f'Requesting: {mp3_url}')
+
+            with open((DIRECTORY / jpg_file_name), 'wb') as f:
+                jpg_file = requests.get(url=jpg_url, headers={'User-Agent': USER_AGENT})
+                f.write(jpg_file.content)
+
             r = requests.get(
-                url=url,
+                url=mp3_url,
                 headers={'User-Agent': USER_AGENT},
             )
             r.raise_for_status()
@@ -105,7 +137,7 @@ class BirdQuiz(QMainWindow):
                     headers={'User-Agent': USER_AGENT},
                 )
 
-                with open((DIRECTORY / file_name), 'wb') as f:
+                with open((DIRECTORY / mp3_file_name), 'wb') as f:
                     f.write(mp3_file.content)
 
         # run quiz until no more birds
@@ -127,6 +159,7 @@ class BirdQuiz(QMainWindow):
 
             # ask player for answer
             dialog = QInputDialog(self)
+
             player_answer, ok = dialog.getText(self, 'Input Dialog', 'The bird is a: ')
             player_answer = player_answer.replace("'", "").lower()
             if player_answer == bird.lower() or player_answer == species_code:
@@ -137,8 +170,7 @@ class BirdQuiz(QMainWindow):
                 msg = QMessageBox()
                 msg.setStandardButtons(QMessageBox.Ok)
                 msg.setWindowTitle('Answer')
-                if player_answer == bird.lower() \
-                        or player_answer == species_code:
+                if player_answer == bird.lower() or player_answer == species_code:
                     msg.setText("Correct!")
                 else:
                     msg.setText(f'Incorrect. The bird is a {bird} ({species_code.upper()}).')
