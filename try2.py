@@ -52,6 +52,7 @@ class Dialog(QDialog):
         file_location = f'C:/Users/Abby/PycharmProjects/BirdCallQuiz/Audio_Files/{self.jpg_file_name}'
         pixmap = QPixmap(file_location)
         self.image_lbl.setPixmap(QPixmap(pixmap))
+        self.load_image_btn.hide()
 
     def get_input(self):
         return self.inp.text()
@@ -177,7 +178,7 @@ class BirdQuiz(QMainWindow):
                              usecols=['Species', 'Species Code'])
             df.set_index('Species', inplace=True)
             species_code = df.at[bird, 'Species Code'].lower()
-            cb_sterile = bird.replace(' ', '-').lower()
+            cb_sterile = bird.replace(' ', '-').replace("'","").lower()
             cb_file = f'{cb_sterile}.mp3'
             # play sound until player gives answer
             mixer.init()
